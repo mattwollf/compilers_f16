@@ -137,8 +137,7 @@
 ;;(test-pe `(+ 1 (+ (read) 1)))
 ;;(test-pe `(- (+ (read) (- 5))))
 
-(define ast1 `(+ (read) -2))
-(define ast2 `(+ 1 (+ (read) ,ast1)))
-(define ast3 `(+ 2 (+ (read) 2)))
-(define ast4 `(+ 2 (+ (read) (+ (+ (read) (- (read))) -4))))
-(define ast5 `(+ (+ (+ 5 (read)) (- (read))) -4))
+(provide pe-add
+         interp-R0
+         pe-arith
+         R0?)
