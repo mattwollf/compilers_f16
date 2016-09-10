@@ -83,17 +83,15 @@
         [(and (fixnum? r1) (exp? r2))
          `(+ ,r1 ,r2)] ; this is a residual but not an exp. acceptable to return as is.
         [(and (fixnum? r1) (residual? r2))
-         `(+ ,(fx+ r1 (extract-residual-num r2)) ,(extract-residual-exp r2))] ; if r2 has an int in its r1 value, extract it and add it to r1, return r1+r2.r1, r2.r2
-        [(and (fixnum? r2) (exp? r1))
-         `(+ ,r2 ,r1)] ; if r2 is fixnum and r1 is exp, swap values to put in proper residual form.
-        [(and (fixnum? r2) (residual? r1))
-         `(+ ,(fx+ r2 (extract-residual-num r1)) ,(extract-residual-exp r1))] ; if r2 is fixnum and r2 is residual with int, use collapse to extract r1's int and add to r2.
+         (pe-add (fx+ r1 (extract-residual-num r2)) (extract-residual-exp r2))] ; if r2 has an int in its r1 value, extract it and add it to r1, return r1+r2.r1, r2.r2
+        [(and (fixnum? r2) (or (exp? r1) (residual? r1)))
+         (pe-add r2 r1)] ; if r2 is fixnum and r1 is exp, swap values to put in proper residual form
         [(and (exp? r1) (collapsible? r2))
-         `(+ ,(extract-residual-num r2) (+ ,r1 ,(extract-residual-exp r2)))]
+         (pe-add r2 r1)] ; swap and let next recursive call extract
         [(and (collapsible? r1) (exp? r2))
-         `(+ ,(extract-residual-num r1) (+ ,(extract-residual-exp r1) ,r2))]
+         (pe-add (extract-residual-num r1) (pe-add (extract-residual-exp r1) r2))]
         [(and (collapsible? r1) (collapsible? r2))
-         `(+ ,(fx+ (extract-residual-num r1) (extract-residual-num r2)) (+ ,(extract-residual-exp r1) ,(extract-residual-exp r2)))]
+         (pe-add (pe-add (extract-residual-num r1) (extract-residual-num r2)) (pe-add (extract-residual-exp r1) (extract-residual-exp r2)))]
         [else `(+ ,r1 ,r2)]))
 
 (define (pe-arith e)
