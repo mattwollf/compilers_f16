@@ -98,58 +98,65 @@
          (let ([new-exp `((assign ,new-var (+ ,lhs-exp ,rhs-exp)))])
            (list new-var (append rhs-al new-exp))))])))
 
-(define (select-instructions alist)
+(define (select-instructions prog)
   (define si (lambda (alist asm)
                (match (car alist)
-                 [`(assign ,lhs ,rhs)
-                  (match rhs
-                    [(? integer? e)
-                     (si (cdr alist)
-                         (cons `(movq (int ,e) (var ,lhs)) asm))]
-                    [(? symbol? e)
-                     (si (cdr alist)
-                         (cons `(movq (var ,e) (var ,lhs)) asm))]
-                    ; if one addition operand matches lhs, we can skip the movq
-                    [(or `(+ ,lhs ,(? integer? e))
-                         `(+ ,(? integer? e) ,lhs))
-                     (si (cdr alist)
-                         (cons `(addq (int ,e) (var ,lhs)) asm))]
-                    ; same as prior case but with another variable instead of int - this also matches (+ lhs lhs)
-                    [(or `(+ ,(? symbol? e) ,lhs)
-                         `(+ ,lhs ,(? symbol? e)))
-                     (si (cdr alist)
-                         (cons `(addq (var ,e) (var ,lhs)) asm))]
-                    ; if one is symbol, one is int
-                    [(or `(+ ,(? symbol? e) ,(? integer? i))
-                         `(+ ,(? integer? i) ,(? symbol? e))) 
-                     (si (cdr alist)
-                         (cons `(addq (int ,i) (var ,lhs))
-                               (cons `(movq (var ,e) (var ,lhs)) asm)))]
-                    ; both integers
-                    [`(+ ,(? integer? e1) ,(? integer? e2))
-                     (si (cdr alist)
-                         (cons `(addq (int ,e1) (var ,lhs))
-                               (cons `(movq (int ,e2) (var ,lhs)) asm)))]
-                    ;both symbols. can this somehow be combined into prior?
-                    [`(+ ,(? symbol? e1) ,(? symbol? e2))
-                     (si (cdr alist)
-                         (cons `(addq (var ,e1) (var ,lhs))
-                               (cons `(movq (var ,e2 (var ,lhs))) asm)))]
-                    [`(read)
-                     (si (cdr alist)
-                         (cons `(movq (reg rax) (var ,lhs))
-                               (cons `(callq read_int) asm)))]
-                    [`(- ,(? integer? e))
-                     (si (cdr alist)
-                         (cons `(negq (var ,lhs)) (cons `(movq (int ,e) (var ,lhs)) asm)))]
-                    
-                    )]
-                 
+                 ; basic integer assignment
+                 [`(assign ,lhs ,(? integer? e))
+                  (si (cdr alist)
+                      (cons `(movq (int ,e) (var ,lhs)) asm))]
+                 ;symbol assignment
+                 [`(assign ,lhs ,(? symbol? e))
+                  (si (cdr alist)
+                      (cons `(movq (var ,e) (var ,lhs)) asm))]
+                 ; addition asignment, one operand matching the assignee
+                 [(or `(assign ,lhs (+ ,lhs ,(? integer? e)))
+                      `(assign ,lhs (+ ,(? integer? e) ,lhs)))
+                  (si (cdr alist)
+                      (cons `(addq (int ,e) (var ,lhs)) asm))]
+                 ; same as above for symbols
+                 [(or `(assign ,lhs (+ ,lhs ,(? symbol? e)))
+                      `(assign ,lhs (+ ,(? symbol? e) ,lhs)))
+                  (si (cdr alist)
+                      (cons `(addq (var ,e) (var ,lhs)) asm))]
+                 ; addition assignment with no matching variables
+                 [(or `(assign ,lhs (+ ,(? symbol? e) ,(? integer? i)))
+                      `(assign ,lhs (+ ,(? integer? i) ,(? symbol? e))))
+                  (si (cdr alist)
+                      (cons `(addq (int ,i) (var ,lhs))
+                            (cons `(movq (var ,e) (var ,lhs)) asm)))]
+                 ; addition with two integers
+                 [`(assign ,lhs (+ ,(? integer? e1) ,(? integer? e2)))
+                  (si (cdr alist)
+                      (cons `(addq (int ,e1) (var ,lhs))
+                            (cons `(movq (int ,e2) (var ,lhs)) asm)))]
+                 ; addition with two symbols
+                 ; TODO figire out if these can be combined, only difference is var/int
+                 [`(assign ,lhs (+ ,(? symbol? e1) ,(? symbol? e2)))
+                  (si (cdr alist)
+                      (cons `(addq (var ,e1) (var ,lhs))
+                            (cons `(movq (var ,e2) (var ,lhs)) asm)))]
+                 ; read assignment
+                 [`(assign ,lhs (read))
+                  (si (cdr alist)
+                      (cons `(movq (reg rax) (var ,lhs))
+                            (cons `(callq read_int) asm)))]
+                 ; negation of assignee
+                 [`(assign ,lhs (- ,lhs))
+                  (si (cdr alist)
+                      (cons `(negq (var ,lhs)) asm))]
+                 ; negation assignment
+                 [`(assign ,lhs (- ,(? integer? e)))
+                  (si (cdr alist)
+                      (cons `(negq (var ,lhs)) (cons `(movq (int ,e) (var ,lhs)) asm)))]
+                 ; symbol negation assignment
+                 ; TODO figure out if we can combine these. they are the same except for the var/int in the movq
+                 [`(assign ,lhs (- ,(? symbol? e)))
+                  (si (cdr alist)
+                      (cons `(negq (var ,lhs)) (cons `(movq (var ,e) (var ,lhs)) asm)))]
                  [`(return ,ret)
                   (cons `(movq (var ,ret) (reg rax)) asm)])))
-
-
-(reverse (si alist '())))
+  (list* 'program (cadr prog) (reverse (si (cddr prog) '()))))
 
 (provide uniquify
          interp-R1
