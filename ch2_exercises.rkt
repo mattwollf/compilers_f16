@@ -68,7 +68,7 @@
 
 
 (define (varlist alist)
-  (map second alist))
+  (remove-duplicates (map second alist)))
 
 (define (flatten vals)
   (match-define (list exp alist) vals)
