@@ -158,6 +158,13 @@
                   (cons `(movq (var ,ret) (reg rax)) asm)])))
   (list* 'program (cadr prog) (reverse (si (cddr prog) '()))))
 
+(define (make-homes prog)
+  (match-define `(program ,vars  ,instrs ...) prog)
+  (define (mh offset vars ret)
+    (cond [(null? vars) ret]
+          [(mh (- offset 8) (cdr vars) (cons (cons (car vars) offset) ret))]))
+  (reverse (mh (* 8 (length vars)) vars '())))
+
 (provide uniquify
          interp-R1
          flatten
