@@ -165,6 +165,36 @@
           [(mh (+ offset 8) (cdr vars) (cons (cons (car vars) (- offset)) ret))]))
   (mh 8 (reverse vars) '()))
 
+(define (assign-homes prog)
+  (define homes (make-homes prog))
+  (define (non-var? e)
+    (and
+     (symbol? e)
+     (not (eq? e 'var))))
+  (define (ah instrs ret)
+    (cond ((null? instrs) ret)
+          (else
+           (match (car instrs)
+             [`(,instr (var ,v1) (var ,v2))
+              (ah (cdr instrs)
+                  (cons `(,instr (deref rbp ,(lookup v1 homes)) (deref rbp ,(lookup v2 homes))) ret))]
+             [`(,instr (var ,(? symbol? v)) (,(? non-var? e) ,i))
+              (ah (cdr instrs)
+                  (cons `(,instr (deref rbp ,(lookup v homes)) (,e ,i)) ret))]
+             [`(,instr (,(? non-var? e) ,i) (var ,v))
+              (ah (cdr instrs)
+                  (cons `(,instr (,e ,i) (deref rbp ,(lookup v homes))) ret))]
+             [`(,instr (var ,v))
+              (ah (cdr instrs)
+                  (cons `(instr (deref rbp ,(lookup v homes))) ret))]
+             ))))
+  (list*
+   'program
+   ; book notes that Mac OSX requires frame size to be a multiple of 16. is this a requirement?
+   (* 8 (length (cadr prog)))
+   (ah (reverse (cddr prog)) '())))
+
+
 (provide uniquify
          interp-R1
          flatten
