@@ -162,8 +162,8 @@
   (match-define `(program ,vars  ,instrs ...) prog)
   (define (mh offset vars ret)
     (cond [(null? vars) ret]
-          [(mh (- offset 8) (cdr vars) (cons (cons (car vars) offset) ret))]))
-  (reverse (mh (* 8 (length vars)) vars '())))
+          [(mh (+ offset 8) (cdr vars) (cons (cons (car vars) (- offset)) ret))]))
+  (mh 8 (reverse vars) '()))
 
 (provide uniquify
          interp-R1
