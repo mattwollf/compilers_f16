@@ -1,6 +1,7 @@
 # autosave and backup files
 *~
 *.rkt~
+*.orig
 *.bak
 \#*
 *.swp
