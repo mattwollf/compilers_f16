@@ -194,6 +194,22 @@
    (* 8 (length (cadr prog)))
    (ah (reverse (cddr prog)) '())))
 
+(define (patch-instructions prog)
+  (define (flatten lst)
+    (foldr
+     (lambda (x prev) (match x
+                        [(list a b) (list* a b prev)]
+                        [_ (list* x prev)]))
+     '()
+     lst))
+  (define pi (match-lambda
+               [`(,instr (deref ,reg ,offset) (deref ,reg2 ,offset2))
+                (list `(movq (deref ,reg ,offset) (reg rax)) `(,instr (reg rax) (deref ,reg2 ,offset2)))]
+               [a a]))
+  (list*
+   'program
+   (cadr prog)
+   (flatten (map pi (cddr prog)))))
 
 (provide uniquify
          interp-R1
