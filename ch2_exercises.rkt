@@ -70,7 +70,7 @@
 (define (varlist alist)
   (remove-duplicates (map second alist)))
 
-(define (flatten vals)
+(define (flatten-R1 vals)
   (match-define (list exp alist) vals)
   (lambda (e)
     (match e
@@ -80,20 +80,20 @@
        (let ([new-var (gensym 'tmp)])
          (list new-var (append alist `((assign ,new-var (read))))))]
       [`(let ([,x ,e]) ,body)
-       (match-define (list ex alist-new) ((flatten (list exp alist)) e))
-       ((flatten (list x (append alist-new `((assign ,x ,ex))))) body)]
+       (match-define (list ex alist-new) ((flatten-R1 (list exp alist)) e))
+       ((flatten-R1 (list x (append alist-new `((assign ,x ,ex))))) body)]
       [`(program ,e)
-       (match-define (list expr alist-new) ((flatten (list exp alist)) e))
+       (match-define (list expr alist-new) ((flatten-R1 (list exp alist)) e))
        (let ([vlist (varlist alist-new)])
          (list* 'program vlist (append alist-new `((return ,(last vlist))))))]
       [`(- ,e)
-       (match-define (list ex alist-new) ((flatten (list exp alist)) e))
+       (match-define (list ex alist-new) ((flatten-R1 (list exp alist)) e))
        (let ([new-var (gensym 'tmp)])
          (let ([new-exp `((assign ,new-var (- ,ex)))])
            (list new-var (append alist-new new-exp))))]
       [`(+ ,e1 ,e2)
-       (match-define (list lhs-exp lhs-al) ((flatten (list null alist)) e1))
-       (match-define (list rhs-exp rhs-al) ((flatten (list lhs-exp lhs-al)) e2))
+       (match-define (list lhs-exp lhs-al) ((flatten-R1 (list null alist)) e1))
+       (match-define (list rhs-exp rhs-al) ((flatten-R1 (list lhs-exp lhs-al)) e2))
        (let ([new-var (gensym 'tmp)])
          (let ([new-exp `((assign ,new-var (+ ,lhs-exp ,rhs-exp)))])
            (list new-var (append rhs-al new-exp))))])))
@@ -197,5 +197,7 @@
 
 (provide uniquify
          interp-R1
-         flatten
-         select-instructions)
+         flatten-R1
+         select-instructions
+         assign-homes
+         patch-instructions)
