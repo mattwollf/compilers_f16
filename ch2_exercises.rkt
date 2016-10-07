@@ -4,7 +4,6 @@
          racket/match
          racket/list
          racket/string
-         racket/trace
          "utilities.rkt"
          )
 
@@ -48,7 +47,7 @@
 ;         [`(- ,e1)    
 
 
-(define (uniquify alist)
+(define (uniquify [alist null])
   (lambda (e)
     (match e
       [(? symbol?) (lookup e alist)]
@@ -71,7 +70,7 @@
 (define (varlist alist)
   (remove-duplicates (map second alist)))
 
-(define (flatten-R1 vals)
+(define (flatten-R1 [vals (list null null)])
   (match-define (list exp alist) vals)
   (lambda (e)
     (match e
@@ -187,20 +186,25 @@
                   (cons `(,instr (,e ,i) (deref rbp ,(lookup v homes))) ret))]
              [`(,instr (var ,v))
               (ah (cdr instrs)
-                  (cons `(instr (deref rbp ,(lookup v homes))) ret))]
-             ))))
-  (list*
-   'program
-   ; book notes that Mac OSX requires frame size to be a multiple of 16. is this a requirement?
-   (* 8 (length (cadr prog)))
-   (ah (reverse (cddr prog)) '())))
+                  (cons `(,instr (deref rbp ,(lookup v homes))) ret))]
+             [`(callq ,func)
+              (ah (cdr instrs)
+              (cons `(callq ,func) ret))]
+              ))))
+(list*
+ 'program
+ ; book notes that Mac OSX requires frame size to be a multiple of 16. is this a requirement?
+ (* 8 (length (cadr prog)))
+ (ah (reverse (cddr prog)) '())))
 
 (define (patch-instructions prog)
   (define (flatten lst)
     (foldr
      (lambda (x prev) (match x
-                        [(list a b) (list* a b prev)]
-                        [_ (list* x prev)]))
+                        [(list a b)
+                         #:when (and (list? a) (list? b))
+                         (list* a b prev)]
+                        [_ (cons x prev)]))
      '()
      lst))
   (define pi (match-lambda
@@ -219,18 +223,18 @@
   (define (fmt instr)
     (format (string-append "        ~a " ) instr))
   (define p86
-                (match-lambda
-                  [(? symbol? e) (symbol->string e)]
-                  [`(reg ,e)
-                   (format "%~a" e)]
-                  [`(int ,e)
-                   (format "$~a" e)]
-                  [`(deref ,e ,offset)
-                   (format "~a(%~a)" offset e)]
-                  [`(,instr ,e)
-                   (string-append (fmt instr) (p86 e))]
-                  [`(,instr ,src ,dest)
-                   (string-append (fmt instr) (string-join `( ,(p86 src) ,(p86 dest)) ", "))]))
+    (match-lambda
+      [(? symbol? e) (symbol->string e)]
+      [`(reg ,e)
+       (format "%~a" e)]
+      [`(int ,e)
+       (format "$~a" e)]
+      [`(deref ,e ,offset)
+       (format "~a(%~a)" offset e)]
+      [`(,instr ,e)
+       (string-append (fmt instr) (p86 e))]
+      [`(,instr ,src ,dest)
+       (string-append (fmt instr) (string-join `( ,(p86 src) ,(p86 dest)) ", "))]))
   (string-join
    (append
     (list
@@ -244,10 +248,11 @@
      (format "        addq $~a, %rsp" (cadr prog))
      "        popq %rbp"
      "        retq"))
-   "\n"))
+   "\n"
+   #:after-last "\n"))
 
-(define (compile prog)
-  (print-x86 (patch-instructions (assign-homes (select-instructions (flatten-R1 ((uniquify null) prog)))))))
+(define (compile-R1 prog)
+  (print-x86 (append-print (patch-instructions (assign-homes (select-instructions ((flatten-R1) ((uniquify) prog))))))))
 
 (provide uniquify
          interp-R1
@@ -256,4 +261,4 @@
          assign-homes
          patch-instructions
          print-x86
-         compile)
+         compile-R1)
