@@ -3,6 +3,7 @@
 (require racket/fixnum
          racket/match
          racket/list
+         racket/string
          racket/trace
          "utilities.rkt"
          )
@@ -211,9 +212,48 @@
    (cadr prog)
    (flatten (map pi (cddr prog)))))
 
+(define (append-print prog)
+  (list* 'program (cadr prog) (append (cddr prog) '((movq (reg rax) (reg rdi)) (callq print_int)))))
+
+(define (print-x86 prog)
+  (define (fmt instr)
+    (format (string-append "        ~a " ) instr))
+  (define p86
+                (match-lambda
+                  [(? symbol? e) (symbol->string e)]
+                  [`(reg ,e)
+                   (format "%~a" e)]
+                  [`(int ,e)
+                   (format "$~a" e)]
+                  [`(deref ,e ,offset)
+                   (format "~a(%~a)" offset e)]
+                  [`(,instr ,e)
+                   (string-append (fmt instr) (p86 e))]
+                  [`(,instr ,src ,dest)
+                   (string-append (fmt instr) (string-join `( ,(p86 src) ,(p86 dest)) ", "))]))
+  (string-join
+   (append
+    (list
+     "        .globl main"
+     "main:"
+     "        pushq %rbp"
+     "        movq %rsp, %rbp"
+     (format "        subq $~a, %rsp" (cadr prog)))
+    (map p86 (cddr prog))
+    (list
+     (format "        addq $~a, %rsp" (cadr prog))
+     "        popq %rbp"
+     "        retq"))
+   "\n"))
+
+(define (compile prog)
+  (print-x86 (patch-instructions (assign-homes (select-instructions (flatten-R1 ((uniquify null) prog)))))))
+
 (provide uniquify
          interp-R1
          flatten-R1
          select-instructions
          assign-homes
-         patch-instructions)
+         patch-instructions
+         print-x86
+         compile)
