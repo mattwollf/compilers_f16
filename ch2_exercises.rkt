@@ -79,9 +79,22 @@
       [`(read)
        (let ([new-var (gensym 'tmp)])
          (list new-var (append alist `((assign ,new-var (read))))))]
+      ;added this case because handling the extra assignment in previous case was causing contract violations.
+      ;consider trying rewriting flatten.
+      [(or `(let ([,x ,(? integer? e)]) ,body)
+           `(let ([,x ,(? symbol? e)]) ,body))
+       ((flatten-R1 (list x (append alist `((assign ,x ,e))))) body)]
+      ;in this case e is probably an s-expression requiring flattening.
+      ;we can remove the last assignment and replace it with the let variable.
       [`(let ([,x ,e]) ,body)
        (match-define (list ex alist-new) ((flatten-R1 (list exp alist)) e))
-       ((flatten-R1 (list x (append alist-new `((assign ,x ,ex))))) body)]
+       ((flatten-R1 (list
+                     x
+                     (append
+                      (reverse (cdr (reverse alist-new)))
+                      (list (match (last alist-new)
+                              [`(assign ,_ ,rhs)
+                               `(assign ,x ,rhs)]))))) body)]
       [`(program ,e)
        (match-define (list expr alist-new) ((flatten-R1 (list exp alist)) e))
        (let ([vlist (varlist alist-new)])
@@ -189,13 +202,13 @@
                   (cons `(,instr (deref rbp ,(lookup v homes))) ret))]
              [`(callq ,func)
               (ah (cdr instrs)
-              (cons `(callq ,func) ret))]
-              ))))
-(list*
- 'program
- ; book notes that Mac OSX requires frame size to be a multiple of 16. is this a requirement?
- (* 8 (length (cadr prog)))
- (ah (reverse (cddr prog)) '())))
+                  (cons `(callq ,func) ret))]
+             ))))
+  (list*
+   'program
+   ; book notes that Mac OSX requires frame size to be a multiple of 16. is this a requirement?
+   (* 8 (length (cadr prog)))
+   (ah (reverse (cddr prog)) '())))
 
 (define (patch-instructions prog)
   (define (flatten lst)
