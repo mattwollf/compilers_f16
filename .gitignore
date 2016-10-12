@@ -6,4 +6,6 @@
 \#*
 *.swp
 
+# compiler/drracket output
 compiled/**
+a.out
