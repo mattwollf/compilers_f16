@@ -5,6 +5,11 @@
          racket/port
          )
 
+(define p1
+  `(program (let ([x 32]) (+ (let ([x2 10]) x2) x))))
+(define p0
+  `(program (+ 52 (- 10))))
+
 (define (lookup e env)
   (cond ((null? env) (error 'lookup "couldnt_match_symbol" e))
         ((eq? e (car (car env))) (cdr (car env)))
@@ -23,4 +28,5 @@
 
 
 (provide lookup
-         compile-run)
+         compile-run
+         p1 p0)

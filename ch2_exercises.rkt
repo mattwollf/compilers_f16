@@ -61,12 +61,6 @@
        `(,op ,@(map (uniquify alist) es))]
       )))
 
-(define p1 
-  `(program (let ([x 32]) (+ (let ([x2 10]) x2) x))))
-(define p0
-  `(program (+ 52 (- 10))))
-
-
 (define (varlist alist)
   (remove-duplicates (map second alist)))
 
@@ -175,11 +169,10 @@
   (match-define `(program ,vars  ,instrs ...) prog)
   (define (mh offset vars ret)
     (cond [(null? vars) ret]
-          [(mh (+ offset 8) (cdr vars) (cons (cons (car vars) (- offset)) ret))]))
+          [(mh (+ offset 8) (cdr vars) (cons (cons (car vars) `(deref rbp ,(- offset))) ret))]))
   (mh 8 (reverse vars) '()))
 
-(define (assign-homes prog)
-  (define homes (make-homes prog))
+(define (assign-homes prog [homes (make-homes prog)])
   (define (non-var? e)
     (and
      (symbol? e)
@@ -190,16 +183,16 @@
            (match (car instrs)
              [`(,instr (var ,v1) (var ,v2))
               (ah (cdr instrs)
-                  (cons `(,instr (deref rbp ,(lookup v1 homes)) (deref rbp ,(lookup v2 homes))) ret))]
+                  (cons `(,instr ,(lookup v1 homes) ,(lookup v2 homes)) ret))]
              [`(,instr (var ,(? symbol? v)) (,(? non-var? e) ,i))
               (ah (cdr instrs)
-                  (cons `(,instr (deref rbp ,(lookup v homes)) (,e ,i)) ret))]
+                  (cons `(,instr ,(lookup v homes) (,e ,i)) ret))]
              [`(,instr (,(? non-var? e) ,i) (var ,v))
               (ah (cdr instrs)
-                  (cons `(,instr (,e ,i) (deref rbp ,(lookup v homes))) ret))]
+                  (cons `(,instr (,e ,i) ,(lookup v homes)) ret))]
              [`(,instr (var ,v))
               (ah (cdr instrs)
-                  (cons `(,instr (deref rbp ,(lookup v homes))) ret))]
+                  (cons `(,instr ,(lookup v homes)) ret))]
              [`(callq ,func)
               (ah (cdr instrs)
                   (cons `(callq ,func) ret))]
@@ -265,9 +258,15 @@
    #:after-last "\n"))
 
 (define (compile-R1 prog)
-  (print-x86 (append-print (patch-instructions (assign-homes (select-instructions ((flatten-R1) ((uniquify) prog))))))))
+  (let ([si-out (select-instructions ((flatten-R1) ((uniquify) prog)))])
+    (print-x86
+     (append-print
+      (patch-instructions
+       (assign-homes
+        si-out (make-homes si-out)))))))
 
 (provide uniquify
+         append-print
          interp-R1
          flatten-R1
          select-instructions
