@@ -8,8 +8,8 @@
          "utilities.rkt"
          )
 
-(define raw-r1 '(program (let ([v 1]) (let ([w 46]) (let ([x (+ v 7)]) (let ([y (+ 4 w)]) (let ([z (+ x w)]) (+ z (- y)))))))))
-(define test (select-instructions ((flatten-R1) raw-r1)))
+(define raw-uncover-test '(program (let ([v 1]) (let ([w 46]) (let ([x (+ v 7)]) (let ([y (+ 4 w)]) (let ([z (+ x w)]) (+ z (- y)))))))))
+(define test (select-instructions ((flatten-R1) raw-uncover-test)))
 
 (define manual-test '(program (v w x y z t.1 t.2)
                               (movq (int 1) (var v))
