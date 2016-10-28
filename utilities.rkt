@@ -15,6 +15,11 @@
         ((eq? e (car (car env))) (cdr (car env)))
         (else (lookup e (cdr env)))))
 
+(define (read-fixnum)
+  (define r (read))
+  (cond [(fixnum? r) r]
+        [else (error 'read-fixnum "not_a_fixnum ~a" r)]))
+
 (define (compile-run prog compile)
   (let*
       ([filename (string-append (symbol->string (gensym 'tmp)) ".s")]
@@ -29,4 +34,5 @@
 
 (provide lookup
          compile-run
+         read-fixnum
          p1 p0)
