@@ -136,14 +136,13 @@
   (define arg? (lambda (x) (or (boolean? x) (symbol? x) (integer? x))))
   (match-define (list exp alist) vals)
   (lambda (e)
-    (match
-      e
+    (match e
       [(? integer?) (list e alist)]
       [(? symbol?) (list e alist)]
       [(? boolean?) (list e alist)]
       [`(read)
-        (let ([new-var (gensym 'tmp)])
-          (list new-var (append alist `((assign ,new-var (read))))))]
+        (define (new-var (gensym 'tmp)))
+        (list new-var (append alist `((assign ,new-var (read)))))]
       ;added this case because handling the extra assignment in previous case was causing contract violations.
       ;consider trying rewriting flatten.
       [(or `(let ([,x ,(? integer? e)]) ,body)
@@ -163,46 +162,46 @@
                                         `(assign ,x ,rhs)]))))) body)]
       [`(program ,e)
         (match-define (list expr alist-new) ((flatten-R2) e))
-        (let ([vlist (varlist alist-new)])
-          (list* 'program vlist (append alist-new `((return ,expr)))))]
+        (define vlist (varlist alist-new))
+        (list* 'program vlist (append alist-new `((return ,expr))))]
       [`(- ,e)
         (match-define (list ex alist-new) ((flatten-R2 (list exp alist)) e))
-        (let* ([new-var (gensym 'tmp)]
-               [new-exp `((assign ,new-var (- ,ex)))])
-          (list new-var (append alist-new new-exp)))]
+        (define new-var (gensym 'tmp))
+        (define new-exp `((assign ,new-var (- ,ex))))
+        (list new-var (append alist-new new-exp))]
       [`(not ,e)
         (match-define (list ex alist-new) ((flatten-R2 (list exp alist)) e))
-        (let* ([new-var (gensym 'tmp)]
-               [new-exp `((assign ,new-var (not ,ex)))])
-          (list new-var (append alist-new new-exp)))]
+        (define new-var (gensym 'tmp))
+        (define new-exp `((assign ,new-var (not ,ex))))
+        (list new-var (append alist-new new-exp))]
       [`(,(? cmp? cmp) ,e1 ,e2)
         (match-define (list lhs-exp lhs-al) ((flatten-R2 (list null alist)) e1))
         (match-define (list rhs-exp rhs-al) ((flatten-R2 (list lhs-exp lhs-al)) e2))
-        (let* ([new-var (gensym 'tmp)]
-               [new-exp `((assign ,new-var (,cmp ,lhs-exp ,rhs-exp)))])
-          (list new-var (append rhs-al new-exp)))]
+        (define new-var (gensym 'tmp))
+        (define new-exp `((assign ,new-var (,cmp ,lhs-exp ,rhs-exp))))
+        (list new-var (append rhs-al new-exp))]
       [`(if ,cnd ,thn ,els)
         (match-define (list ex alist-new) ((flatten-R2) cnd))
         (match-define (list thn-ex thn-alist) ((flatten-R2) thn))
         (match-define (list els-ex els-alist) ((flatten-R2) els))
-        (let* ([new-var (gensym 'if)]
-               [new-exp `((if (eq? #t ,ex) ,(append thn-alist `((assign ,new-var ,thn-ex))) ,(append els-alist `((assign ,new-var ,els-ex)))))])
-          (list new-var (append alist-new new-exp)))]
+        (define new-var (gensym 'if))
+        (define new-exp `((if (eq? #t ,ex) ,(append thn-alist `((assign ,new-var ,thn-ex))) ,(append els-alist `((assign ,new-var ,els-ex))))))
+        (list new-var (append alist-new new-exp))]
 
       [`(+ ,e1 ,e2)
         (match-define (list lhs-exp lhs-al) ((flatten-R2 (list null alist)) e1))
         (match-define (list rhs-exp rhs-al) ((flatten-R2 (list lhs-exp lhs-al)) e2))
-        (let* ([new-var (gensym 'tmp)]
-               [new-exp `((assign ,new-var (+ ,lhs-exp ,rhs-exp)))])
-          (list new-var (append rhs-al new-exp)))]
+        (define new-var (gensym 'tmp))
+        (define new-exp `((assign ,new-var (+ ,lhs-exp ,rhs-exp))))
+        (list new-var (append rhs-al new-exp))]
       [`(and ,e1 ,e2)
         (match-define (list lhs-exp lhs-al) ((flatten-R2 (list null alist)) e1))
         (match-define (list rhs-exp rhs-al) ((flatten-R2 (list null alist)) e2))
-        (let* ([new-var (gensym 'tmp)]
-               [new-exp `((if (eq? #t ,lhs-exp)
+        (define new-var (gensym 'tmp))
+        (define new-exp `((if (eq? #t ,lhs-exp)
                             (,(append rhs-al `(assign ,new-var (eq? #t ,rhs-exp))))
-                            ((assign ,new-var #f))))])
-          (list new-var (append lhs-al new-exp)))]
+                            ((assign ,new-var #f)))))
+        (list new-var (append lhs-al new-exp))]
       )))
 
 (define test '(program (let ([x (if #f 0 42)]) x)))
